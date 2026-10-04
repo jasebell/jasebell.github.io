@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Graph</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        #cy {
+            width: 100%;
+            height: 100%;
+            display: block;
+            background-color: #fff;
+        }
+
+        body {
+            background-color: #fff;
+        }
+
+        .graph-info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            font-size: 14px;
+            z-index: 10;
+            max-width: 300px;
+        }
+
+        .graph-info h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .graph-info p {
+            margin: 5px 0;
+            color: #666;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+        }
+
+        .controls button {
+            display: block;
+            width: 100%;
+            padding: 8px 12px;
+            margin: 5px 0;
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 10px;
+        }
+
+        .controls button:hover {
+            background: #0052a3;
+        }
+
+        .selected-node {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+            min-width: 200px;
+        }
+
+        .selected-node h4 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        .selected-node p {
+            margin: 5px 0;
+            color: #666;
+            font-size: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Jason Bell - Knowledge Graph</h1>
+    <div id="cy"></div>
+     
+    <div class="graph-info">
+        <h3>Knowledge Graph</h3>
+        <p><strong>Nodes:</strong> Person,Employment, Skill, Book, Conference</p>
+        <p><strong>Edges:</strong> Relationships between entities</p>
+        <p><em>Click a node to see details</em></p>
+        <p><a href="index.html">Back to Home</a></p>
+    </div>
+
+    <div class="controls">
+        <h3>Graph Controls</h3>
+        <button onclick="cy.layout({ name: 'cose' }).run()">Layout: Cose</button>
+        <button onclick="cy.layout({ name: 'grid' }).run()">Layout: Grid</button>
+        <button onclick="cy.layout({ name: 'circle' }).run()">Layout: Circle</button>
+        <button onclick="cy.fit()">Fit to View</button>
+    </div>
+
+    <div class="selected-node" id="nodeInfo" style="display: none;">
+        <h4 id="nodeName"></h4>
+        <p><strong>Type:</strong> <span id="nodeType"></span></p>
+        <p><strong>Connections:</strong> <span id="nodeConnections"></span></p>
+    </div>
+
+    <script>
+        // Initialize Cytoscape
+        const cy = cytoscape({
+            container: document.getElementById('cy'),
+
+            style: [
+                {
+                    selector: 'node',
+                    style: {
+                        'background-color': '#0066cc',
+                        'label': 'data(label)',
+                        'text-valign': 'center',
+                        'text-halign': 'center',
+                        'font-size': 10,
+                        'color': '#fff',
+                        'width': 60,
+                        'height': 60,
+                        'border-width': 2,
+                        'border-color': '#fff',
+                        'z-index': 10
+                    }
+                },
+                // Node type colors
+                {
+                    selector: 'node[type="Person"]',
+                    style: {
+                        'background-color': '#ff6b6b'
+                    }
+                },
+                {
+                    selector: 'node[type="Employer"]',
+                    style: {
+                        'background-color': '#ff0000'
+                    }
+                },
+                {
+                    selector: 'node[type="Employment"]',
+                    style: {
+                        'background-color': '#ffe66d'
+                    }
+                },
+                {
+                    selector: 'node[type="Skill"]',
+                    style: {
+                        'background-color': '#95e1d3'
+                    }
+                },
+                {
+                    selector: 'node[type="Organization"]',
+                    style: {
+                        'background-color': '#a8d8ea'
+                    }
+                },
+                {
+                    selector: 'node[type="Project"]',
+                    style: {
+                        'background-color': '#aa96da'
+                    }
+                },
+                {
+                    selector: 'node:selected',
+                    style: {
+                        'background-color': '#ff3333',
+                        'border-width': 3,
+                        'border-color': '#cc0000'
+                    }
+                },
+                {
+                    selector: 'edge',
+                    style: {
+                        'line-color': '#ccc',
+                        'target-arrow-color': '#999',
+                        'target-arrow-shape': 'triangle',
+                        'curve-style': 'bezier',
+                        'label': 'data(label)',
+                        'font-size': 10,
+                        'text-background-color': '#fff',
+                        'text-background-padding': '3px',
+                        'text-background-opacity': 0.8,
+                        'text-background-shape': 'roundrectangle',
+                        'z-index': 5,
+                        'width': 1
+                    }
+                },
+                {
+                    selector: 'edge.highlighted',
+                    style: {
+                        'line-color': '#333',
+                        'target-arrow-color': '#333',
+                        'width': 3,
+                        'z-index': 20
+                    }
+                }
+            ],
+
+            elements: [
+                // NODES - Add your entities here
+                // ME
+                { data: { id: 'person1', label: 'Jason Bell', type: 'Person' } },
+
+                // PROJECTS
+                { data: { id: 'faadigest', label: 'FAA Digest', type: 'Project' } },
+                { data: { id: 'zelda', label: 'ZeldaHFT', type: 'Project' } },
+                { data: { id: 'travelgraph', label: 'TravelGraph', type: 'Project' } },
+
+                // BOOKS
+                {data: { id: 'book1', label: 'Machine Learning: Hands on for Developers and Tech Professionals.', type: 'Book' } },
+                {data: { id: 'book2', label: 'Machine Learning: Hands on for Developers and Tech Professionals. 2nd Edition', type: 'Book' } },
+                {data: { id: 'book3', label: 'Machine Learning in the City', type: 'Book' } },
+
+                // CONFERNENCES
+                {data: { id: 'conference1', label: 'Strata', type: 'Conference' } },
+                {data: { id: 'conference2', label: 'NIDC', type: 'Conference' } },
+                {data: { id: 'conference3', label: 'Kafka Summit', type: 'Conference' } },
+                {data: { id: 'conference4', label: 'TechTides', type: 'Conference' } },
+                {data: { id: 'conference5', label: 'Beltech', type: 'Conference' } },
+                {data: { id: 'conference6', label: 'BigData Belfast', type: 'Conference' } },
+                {data: { id: 'conference7', label: 'AICon', type: 'Conference' } },
+                {data: { id: 'conference8', label: 'Smart Retail', type: 'Conference' } },
+                {data: { id: 'conference9', label: 'ClojureX', type: 'Conference' } },
+
+                // EMPLOYER
+                { data: { id: 'digitalisio', label: 'Digitalis.io', type: 'Employer' } },
+                { data: { id: 'neone', label: 'Neone', type: 'Employer' } },
+                { data: { id: 'ester', label: 'ESTHER', type: 'Employer' } },
+                { data: { id: 'webdataworks', label: 'WebDataWorks', type: 'Employer' } },
+                { data: { id: 'yapster', label: 'Yapster', type: 'Employer' } },
+                { data: { id: 'minoro', label: 'Minoro', type: 'Employer' } },
+                { data: { id: 'mastodonc', label: 'Mastodon C', type: 'Employer' } },
+                { data: { id: 'sportsfusion', label: 'SportsFusion', type: 'Employer' } },
+
+
+
+                { data: { id: 'machine_learning', label: 'Machine Learning', type: 'Skill' } },
+                { data: { id: 'python', label: 'Python', type: 'Skill' } },
+                { data: { id: 'java', label: 'Java', type: 'Skill' } },
+                { data: { id: 'clojure', label: 'Clojure', type: 'Skill' } },
+                { data: { id: 'kafka', label: 'Kafka', type: 'Skill' } },
+                { data: { id: 'confluent_cloud', label: 'Confluent Cloud', type: 'Skill' } },
+                { data: { id: 'pulsar', label: 'Pulsar', type: 'Skill' } },
+                { data: { id: 'hadoop', label: 'Hadoop', type: 'Skill' } },
+                { data: { id: 'go', label: 'Go', type: 'Skill' } },
+                { data: { id: 'arcadedb', label: 'ArcadeDB', type: 'Skill' } },
+                { data: { id: 'neo4j', label: 'Neo4j', type: 'Skill' } },
+                { data: { id: 'postgresql', label: 'PostgreSQL', type: 'Skill' } },
+                { data: { id: 'mongodb', label: 'MongoDB', type: 'Skill' } },
+                { data: { id: 'kubernetes', label: 'Kubernetes', type: 'Skill' } },
+                { data: { id: 'docker', label: 'Docker', type: 'Skill' } },
+                { data: { id: 'terraform', label: 'Terraform', type: 'Skill' } },
+                { data: { id: 'ansible', label: 'Ansible', type: 'Skill' } },
+                { data: { id: 'nats', label: 'NATS', type: 'Skill' } },
+                { data: { id: 'aws', label: 'AWS', type: 'Skill' } },
+
+
+                // EDGES - Add relationships here
+
+                { data: { id: 'e2', source: 'person1', target: 'digitalisio', label: 'employed by' } },
+                { data: { id: 'e25', source: 'person1', target: 'confluent_cloud', label: 'has skill' } },
+                { data: { id: 'e33', source: 'digitalisio', target: 'confluent_cloud', label: 'using' } },
+                { data: { id: 'e34', source: 'digitalisio', target: 'kafka', label: 'using' } },
+                { data: { id: 'e35', source: 'digitalisio', target: 'docker', label: 'using' } },
+                { data: { id: 'e36', source: 'digitalisio', target: 'terraform', label: 'using' } },
+                { data: { id: 'e37', source: 'digitalisio', target: 'ansible', label: 'using' } },
+                { data: { id: 'e38', source: 'digitalisio', target: 'java', label: 'using' } },
+                { data: { id: 'e41', source: 'digitalisio', target: 'hadoop', label: 'using' } },
+
+                { data: { id: 'e26', source: 'person1', target: 'neone', label: 'employed by' } },
+                { data: { id: 'e39', source: 'neone', target: 'go', label: 'using' } },
+                { data: { id: 'e40', source: 'neone', target: 'kubernetes', label: 'using' } },
+                { data: { id: 'e69', source: 'neone', target: 'mongodb', label: 'using' } },
+                { data: { id: 'e42', source: 'neone', target: 'kafka', label: 'using' } },
+                { data: { id: 'e43', source: 'neone', target: 'nats', label: 'using' } },
+
+                { data: { id: 'e27', source: 'person1', target: 'ester', label: 'employed by' } },
+                { data: { id: 'e44', source: 'ester', target: 'python', label: 'using' } },
+                { data: { id: 'e45', source: 'ester', target: 'aws', label: 'using' } },
+
+                { data: { id: 'e28', source: 'person1', target: 'webdataworks', label: 'employed by' } },
+                { data: { id: 'e46', source: 'webdataworks', target: 'pulsar', label: 'using' } },
+                { data: { id: 'e47', source: 'webdataworks', target: 'python', label: 'using' } },
+                { data: { id: 'e48', source: 'webdataworks', target: 'kubernetes', label: 'using' } },
+
+                { data: { id: 'e29', source: 'person1', target: 'yapster', label: 'employed by' } },
+                { data: { id: 'e49', source: 'yapster', target: 'clojure', label: 'using' } },
+                { data: { id: 'e50', source: 'yapster', target: 'kafka', label: 'using' } },
+                { data: { id: 'e51', source: 'yapster', target: 'nats', label: 'using' } },
+
+                { data: { id: 'e30', source: 'person1', target: 'minoro', label: 'employed by' } },
+                { data: { id: 'e52', source: 'minoro', target: 'clojure', label: 'using' } },
+
+                { data: { id: 'e31', source: 'person1', target: 'mastodonc', label: 'employed by' } },
+                { data: { id: 'e53', source: 'mastodonc', target: 'clojure', label: 'using' } },
+                { data: { id: 'e54', source: 'mastodonc', target: 'kafka', label: 'using' } },
+
+                { data: { id: 'e32', source: 'person1', target: 'sportsfusion', label: 'employed by' } },
+                { data: { id: 'e55', source: 'sportsfusion', target: 'java', label: 'using' } },
+                { data: { id: 'e56', source: 'sportsfusion', target: 'postgresql', label: 'using' } },
+
+                { data: { id: 'e57', source: 'person1', target: 'faadigest', label: 'working on' } },
+                { data: { id: 'e58', source: 'faadigest', target: 'python', label: 'using' } },
+
+                { data: { id: 'e59', source: 'person1', target: 'zelda', label: 'working on' } },
+                { data: { id: 'e60', source: 'zelda', target: 'java', label: 'using' } },
+                { data: { id: 'e61', source: 'zelda', target: 'machine_learning', label: 'using' } },
+                { data: { id: 'e62', source: 'zelda', target: 'postgresql', label: 'using' } },
+                { data: { id: 'e63', source: 'zelda', target: 'docker', label: 'using' } },
+
+                {data: { id: 'e64', source: 'person1', target: 'travelgraph', label: 'working on' } },
+                { data: { id: 'e65', source: 'travelgraph', target: 'clojure', label: 'using' } },
+                { data: { id: 'e66', source: 'travelgraph', target: 'arcadedb', label: 'using' } },
+                { data: { id: 'e68', source: 'travelgraph', target: 'docker', label: 'using' } },
+
+                {data: { id: 'e67', source: 'person1', target: 'book1', label: 'author of' } },
+                {data: { id: 'e72', source: 'book1', target: 'machine_learning', label: 'book subject' } },
+                {data: { id: 'e70', source: 'person1', target: 'book2', label: 'author of' } },
+                {data: { id: 'e72', source: 'book2', target: 'machine_learning', label: 'book subject' } },
+
+                {data: { id: 'e71', source: 'person1', target: 'book3', label: 'contributor to' } },
+                {data: { id: 'e73', source: 'book3', target: 'machine_learning', label: 'book subject' } },
+
+                // Speaker at conferences
+                {data : { id: 'e74', source: 'person1', target: 'conference1', label: 'speaker' } },
+                {data : { id: 'e75', source: 'person1', target: 'conference2', label: 'speaker' } },
+                {data : { id: 'e76', source: 'person1', target: 'conference3', label: 'speaker' } },
+                {data : { id: 'e77', source: 'person1', target: 'conference4', label: 'speaker' } },
+                {data : { id: 'e78', source: 'person1', target: 'conference5', label: 'speaker' } },
+                {data : { id: 'e79', source: 'person1', target: 'conference6', label: 'speaker' } },
+                {data : { id: 'e80', source: 'person1', target: 'conference7', label: 'speaker' } },
+                {data : { id: 'e81', source: 'person1', target: 'conference8', label: 'speaker' } },
+                {data : { id: 'e82', source: 'person1', target: 'conference9', label: 'speaker' } },
+
+                { data: { id: 'e83', source: 'person1', target: 'conference1', label: 'program committee member' } },
+                { data: { id: 'e83', source: 'person1', target: 'conference2', label: 'program committee member' } },
+                { data: { id: 'e83', source: 'person1', target: 'conference9', label: 'program committee member' } },
+
+                { data: { id: 'e3', source: 'person1', target: 'machine_learning', label: 'has skill' } },
+                { data: { id: 'e4', source: 'person1', target: 'python', label: 'has skill' } },
+                { data: { id: 'e5', source: 'person1', target: 'java', label: 'has skill' } },
+                { data: { id: 'e6', source: 'person1', target: 'clojure', label: 'has skill' } },
+                { data: { id: 'e7', source: 'person1', target: 'kafka', label: 'has skill' } },
+                { data: { id: 'e8', source: 'person1', target: 'pulsar', label: 'has skill' } },
+                { data: { id: 'e9', source: 'person1', target: 'hadoop', label: 'has skill' } },
+                { data: { id: 'e10', source: 'person1', target: 'go', label: 'has skill' } },
+                { data: { id: 'e15', source: 'person1', target: 'arcadedb', label: 'has skill' } },
+                { data: { id: 'e16', source: 'person1', target: 'neo4j', label: 'has skill' } },
+                { data: { id: 'e17', source: 'person1', target: 'postgresql', label: 'has skill' } },
+                { data: { id: 'e22', source: 'person1', target: 'kubernetes', label: 'has skill' } },
+                { data: { id: 'e23', source: 'person1', target: 'docker', label: 'has skill' } },
+
+            ],
+
+            layout: {
+                name: 'cose',
+                directed: false,
+                animate: true,
+                animationDuration: 500
+            }
+        });
+
+        // Node selection and info display
+        cy.on('tap', 'node', function (evt) {
+            const node = evt.target;
+            const nodeInfo = document.getElementById('nodeInfo');
+
+            // Remove highlight from all edges first
+            cy.edges().removeClass('highlighted');
+
+            // Get connected edges and highlight them
+            const connectedEdges = node.connectedEdges();
+            connectedEdges.addClass('highlighted');
+
+            // Update info panel
+            document.getElementById('nodeName').textContent = node.data('label');
+            document.getElementById('nodeType').textContent = node.data('type') || 'Unknown';
+            document.getElementById('nodeConnections').textContent = connectedEdges.length;
+
+            nodeInfo.style.display = 'block';
+        });
+
+        // Hide info panel when clicking elsewhere
+        cy.on('tap', function (evt) {
+            if (evt.target === cy) {
+                document.getElementById('nodeInfo').style.display = 'none';
+                cy.elements().unselect();
+                cy.edges().removeClass('highlighted');
+            }
+        });
+
+        // Initial fit
+        cy.fit();
+    </script>
+</body>
+
+</html>
